@@ -26,7 +26,6 @@ class UserManager(private val db: Database) {
     init {
         transaction(db) {
             SchemaUtils.create(Users)
-            SchemaUtils.create(Tokens)
         }
     }
 

@@ -20,11 +20,6 @@ object Meets : Table() {
     override val primaryKey = PrimaryKey(id)
 }
 
-object Tokens : Table() {
-    val token = text("token").uniqueIndex()
-    val user = text("user")
-}
-
 object MeetParticipants : Table() {
     val meetId = integer("meetId")
     val user = text("user")
