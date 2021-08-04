@@ -81,7 +81,11 @@ fun main() {
     lateinit var databaseManager: DatabaseManager
 
     try {
-        databaseManager = DatabaseManager(database)
+        databaseManager = DatabaseManager(
+            database,
+            serverConfig.hs256secret,
+            serverConfig.jwtIssuer
+        )
     }
     catch (exc: Exception) {
         println("Unable to start server: internal error: $exc")

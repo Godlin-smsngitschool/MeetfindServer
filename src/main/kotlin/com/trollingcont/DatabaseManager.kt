@@ -4,9 +4,13 @@ import com.trollingcont.model.*
 import org.jetbrains.exposed.sql.Database
 import java.lang.Exception
 
-class DatabaseManager(db: Database) {
+class DatabaseManager(
+    db: Database,
+    hs256secret: String,
+    jwtIssuer: String
+) {
 
-    private val userManager = UserManager(db)
+    private val userManager = UserManager(db, hs256secret, jwtIssuer)
     private val meetManager = MeetManager(db)
 
     fun addUser(user: User) {

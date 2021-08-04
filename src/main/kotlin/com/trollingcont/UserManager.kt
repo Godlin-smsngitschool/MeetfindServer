@@ -15,7 +15,11 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.*
 
-class UserManager(private val db: Database) {
+class UserManager(
+    private val db: Database,
+    private val hs256secret: String,
+    private val jwtIssuer: String
+    ) {
 
     enum class UserDataFormatErrors(val errorCode: Int) {
         NO_ERROR(0),
@@ -101,20 +105,20 @@ class UserManager(private val db: Database) {
             throw UserNotFoundException()
         }
 
-        val algorithm = Algorithm.HMAC256("Bubblegum")
+        val algorithm = Algorithm.HMAC256(hs256secret)
 
         return JWT.create()
-            .withIssuer("MeetFindTrollingContServer")
-            .withJWTId(user.name)
+            .withIssuer(jwtIssuer)
+            .withJWTId(user.name + registeredUser.passwordHash)
             .sign(algorithm)
     }
 
     fun isValidToken(token: String) =
         try {
-            val algorithm = Algorithm.HMAC256("Bubblegum")
+            val algorithm = Algorithm.HMAC256(hs256secret)
 
             val verifier = JWT.require(algorithm)
-                .withIssuer("MeetFindTrollingContServer")
+                .withIssuer(jwtIssuer)
                 .build()
 
             verifier.verify(token)
@@ -148,7 +152,7 @@ class UserManager(private val db: Database) {
         private const val charsLength = chars.length
         private const val hashingCount = 16
 
-        private fun generateRandomString(length: Int): String {
+        fun generateRandomString(length: Int): String {
             val secureRandom = SecureRandom()
             val str = StringBuilder()
 
