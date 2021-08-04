@@ -33,7 +33,6 @@ const val configFileName = "ServerConfig.json"
 const val loggerPropertiesFileName = "log4j.properties"
 
 fun main() {
-    //BasicConfigurator.configure()
     PropertyConfigurator.configure(loggerPropertiesFileName)
     val gson = Gson()
 
