@@ -1,0 +1,50 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}"
+    }
+}
+
+apply plugin: 'application'
+
+mainClassName = "com.trollingcont.ServerMainKt"
+
+repositories {
+    mavenCentral()
+}
+
+apply plugin: 'kotlin'
+
+compileKotlin.kotlinOptions.jvmTarget = "11"
+compileTestKotlin.kotlinOptions.jvmTarget = "11"
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+test {
+    useJUnitPlatform()
+}
+
+dependencies {
+    implementation "org.jetbrains.exposed:exposed-core:${exposedVersion}"
+    implementation "org.jetbrains.exposed:exposed-dao:${exposedVersion}"
+    implementation "org.jetbrains.exposed:exposed-jdbc:${exposedVersion}"
+    implementation "org.jetbrains.exposed:exposed-java-time:${exposedVersion}"
+    implementation "org.http4k:http4k-core:${http4kVersion}"
+    implementation "org.http4k:http4k-format-gson:${http4kVersion}"
+    implementation "org.http4k:http4k-security-oauth:${http4kVersion}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}"
+    implementation "mysql:mysql-connector-java:5.1.48"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+    implementation 'org.apache.logging.log4j:log4j:2.14.1'
+    implementation 'org.slf4j:slf4j-api:1.7.5'
+    implementation 'org.slf4j:slf4j-log4j12:1.7.5'
+    implementation 'com.auth0:java-jwt:3.18.1'
+}
