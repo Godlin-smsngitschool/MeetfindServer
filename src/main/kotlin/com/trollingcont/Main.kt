@@ -87,8 +87,6 @@ fun main() {
 
     println("Successfully connected to database")
 
-    //val localDateTime: LocalDateTime = LocalDateTime.parse("2021-07-31T11:30:00+03:00")
-
     val app: HttpHandler = routes(
         "/register" bind Method.POST to {
                 req: Request ->
