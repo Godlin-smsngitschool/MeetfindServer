@@ -10,6 +10,10 @@ import com.trollingcont.model.*
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.nio.charset.Charset
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.*
 
 class UserManager(private val db: Database) {
 
@@ -36,11 +40,19 @@ class UserManager(private val db: Database) {
             throw UserFormatException(errorCode)
         }
 
+        val passwordSalt = generateRandomString(32)
+        var newUserPasswordHash = user.password + passwordSalt
+
+        for (i in 1.. hashingCount) {
+            newUserPasswordHash = generateStringHash(newUserPasswordHash)
+        }
+
         try {
             transaction(db) {
                 Users.insert {
                     it[name] = user.name
-                    it[password] = user.password
+                    it[passwordHash] = newUserPasswordHash
+                    it[salt] = passwordSalt
                 }
             }
         }
@@ -59,14 +71,34 @@ class UserManager(private val db: Database) {
             throw UserFormatException(errorCode)
         }
 
+        lateinit var registeredUser: RegisteredUser
+
         transaction(db) {
             val query = Users.select {
-                (Users.name eq user.name) and (Users.password eq user.password)
+                (Users.name eq user.name)
             }
 
             if (query.count() == 0L) {
                 throw UserNotFoundException()
             }
+
+            registeredUser = query.map {
+                RegisteredUser(
+                    it[Users.name],
+                    it[Users.passwordHash],
+                    it[Users.salt]
+                )
+            }[0]
+        }
+
+        var calculatedPasswordHash = user.password + registeredUser.salt
+
+        for (i in 1.. hashingCount) {
+            calculatedPasswordHash = generateStringHash(calculatedPasswordHash)
+        }
+
+        if (registeredUser.passwordHash != calculatedPasswordHash) {
+            throw UserNotFoundException()
         }
 
         val algorithm = Algorithm.HMAC256("Bubblegum")
@@ -111,5 +143,40 @@ class UserManager(private val db: Database) {
                 user.password.indexOf(" ") != -1 -> UserDataFormatErrors.PASSWORD_INVALID_CHARS
                 else -> UserDataFormatErrors.NO_ERROR
             }
+
+        private const val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        private const val charsLength = chars.length
+        private const val hashingCount = 16
+
+        private fun generateRandomString(length: Int): String {
+            val secureRandom = SecureRandom()
+            val str = StringBuilder()
+
+            for (i in 0..length) {
+                str.append(chars[secureRandom.nextInt(charsLength - 1)])
+            }
+
+            return str.toString()
+        }
+
+        private fun generateStringHash(sourceStr: String): String {
+            val bytes = MessageDigest
+                .getInstance("SHA-256")
+                .digest(sourceStr.toByteArray())
+
+            return printHexBinary(bytes).toUpperCase(Locale.ROOT)
+        }
+
+        private val hexChars = "0123456789ABCDEF".toCharArray()
+
+        private fun printHexBinary(data: ByteArray): String {
+            val r = StringBuilder(data.size * 2)
+            data.forEach { b ->
+                val i = b.toInt()
+                r.append(hexChars[i shr 4 and 0xF])
+                r.append(hexChars[i and 0xF])
+            }
+            return r.toString()
+        }
     }
 }

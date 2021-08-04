@@ -6,7 +6,8 @@ import org.jetbrains.exposed.sql.`java-time`.datetime
 object Users : Table() {
     val id = integer("id").autoIncrement()
     val name = text("name").uniqueIndex()
-    val password = text("password")
+    val passwordHash = text("passwordHash")
+    val salt = text("salt")
     override val primaryKey = PrimaryKey(id)
 }
 
