@@ -23,8 +23,11 @@ class DatabaseManager(
     fun isValidToken(token: String) =
         userManager.isValidToken(token)
 
-    fun addMeet(meetCreationData: MeetCreationData) {
+    fun isUsernameUsed(username: String) =
+        userManager.isUsernameUsed(username)
 
+    fun addMeet(meetCreationData: MeetCreationData) {
+        meetManager.addMeet(meetCreationData)
     }
 
     fun addMeetParticipant(meetId: Int, participantUsername: String) {

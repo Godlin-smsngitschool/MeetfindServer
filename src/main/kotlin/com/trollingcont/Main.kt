@@ -5,9 +5,11 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.squareup.moshi.Json
+import com.trollingcont.errorhandling.MeetCreationDataException
 import com.trollingcont.errorhandling.UserAlreadyExistsException
 import com.trollingcont.errorhandling.UserFormatException
 import com.trollingcont.errorhandling.UserNotFoundException
+import com.trollingcont.model.MeetCreationData
 import com.trollingcont.model.ServerConfig
 import com.trollingcont.model.User
 import org.apache.log4j.PropertyConfigurator
@@ -28,6 +30,9 @@ import java.io.File
 import java.nio.charset.Charset
 import java.nio.file.Paths
 import java.security.SecureRandom
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
 
 
@@ -170,6 +175,51 @@ fun main() {
                 println("[REQUEST HANDLER] GET /test_req :: Attempt to access without valid token")
                 Response(UNAUTHORIZED).body("Not authorized: token is not valid or missing")
             }
+        },
+
+        "/create_meet" bind Method.POST to {
+                req: Request ->
+            val token = req.header("Authorization")
+
+            if (token != null && databaseManager.isValidToken(token)) {
+                val requestBody = req.bodyString()
+
+                try {
+                    val jsonObject = JsonParser.parseString(requestBody).asJsonObject
+
+                    val meetCreationData = MeetCreationData(
+                        jsonObject.get("name").asString,
+                        jsonObject.get("description").asString,
+                        jsonObject.get("latitude").asDouble,
+                        jsonObject.get("longitude").asDouble,
+                        jsonObject.get("time").asString,
+                        jsonObject.get("creatorUsername").asString
+                    )
+
+                    try {
+                        databaseManager.addMeet(meetCreationData)
+                    }
+                    catch (mcd: MeetCreationDataException) {
+                        println("[REQUEST HANDLER] POST /create_meet :: Meet creation data is not valid. '$requestBody'," +
+                                " error code ${mcd.code().ordinal}")
+                        Response(BAD_REQUEST).body(mcd.code().ordinal.toString())
+                    }
+                    catch (exc: Exception) {
+                        println("[REQUEST HANDLER][SERVER ERROR] POST /create_meet :: Exception $exc")
+                        Response(INTERNAL_SERVER_ERROR)
+                    }
+
+                    Response(CREATED)
+                }
+                catch (exc: Exception) {
+                    println("[REQUEST HANDLER] POST /create_meet :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                    Response(BAD_REQUEST)
+                }
+            }
+            else {
+                println("[REQUEST HANDLER] POST /create_meet :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
         }
     )
 
@@ -185,4 +235,6 @@ fun main() {
     }
 
     println("Server started on ${server.port()}, ready to accept connections")
+
+    // "2021-08-05T11:30:00+03:00"
 }

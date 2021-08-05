@@ -13,11 +13,13 @@ object Users : Table() {
 
 object Meets : Table() {
     val id = integer("id").autoIncrement()
+    val description = text("description")
     val creator = text("creator")
     val name = text("name")
     val latitude = double("latitude")
     val longitude = double("longitude")
-    val time = datetime("time")
+    val timeScheduled = datetime("timeScheduled")
+    val timeCreated = datetime("timeCreated")
     override val primaryKey = PrimaryKey(id)
 }
 
