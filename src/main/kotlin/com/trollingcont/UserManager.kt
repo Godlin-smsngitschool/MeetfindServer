@@ -13,6 +13,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.LocalDateTime
 import java.util.*
 
 class UserManager(
@@ -107,13 +108,21 @@ class UserManager(
 
         val algorithm = Algorithm.HMAC256(hs256secret)
 
+        val calendar = Calendar.getInstance()
+        val currentTime = calendar.time
+        calendar.add(Calendar.HOUR, 48)
+        val expirationTime = calendar.time
+
         return JWT.create()
             .withIssuer(jwtIssuer)
-            .withJWTId(user.name + registeredUser.passwordHash)
+            .withIssuedAt(currentTime)
+            .withExpiresAt(expirationTime)
+            .withSubject(registeredUser.name)
+            .withJWTId(generateRandomString(16))
             .sign(algorithm)
     }
 
-    fun isValidToken(token: String) =
+    fun isValidToken(token: String, checkedUsername: String? = null) =
         try {
             val algorithm = Algorithm.HMAC256(hs256secret)
 
@@ -121,11 +130,10 @@ class UserManager(
                 .withIssuer(jwtIssuer)
                 .build()
 
-            verifier.verify(token)
+            val decodedJwt = verifier.verify(token)
 
-            true
-        }
-        catch (exc: JWTVerificationException) {
+            !(checkedUsername != null && decodedJwt.subject != checkedUsername)
+        } catch (exc: JWTVerificationException) {
             false
         }
 

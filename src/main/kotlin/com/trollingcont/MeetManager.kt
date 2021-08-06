@@ -1,6 +1,7 @@
 package com.trollingcont
 
 import com.trollingcont.errorhandling.MeetCreationDataException
+import com.trollingcont.errorhandling.MeetCreationException
 import com.trollingcont.model.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -16,8 +17,7 @@ class MeetManager(private val db: Database) {
         NO_ERROR(0),
         NAME_EMPTY(1),
         NAME_TOO_SHORT(2),
-        TIME_EMPTY(3),
-        WRONG_TIME_FORMAT(4)
+        TIME_EMPTY(3)
     }
 
     init {
@@ -27,33 +27,46 @@ class MeetManager(private val db: Database) {
         }
     }
 
-    fun addMeet(meetCreationData: MeetCreationData) {
+    fun addMeet(meetCreationData: MeetCreationData): Meet {
         val errorCode = validateMeetCreationData(meetCreationData)
 
         if (errorCode != MeetCreationDataErrors.NO_ERROR) {
             throw MeetCreationDataException(errorCode)
         }
 
-        lateinit var meetTimeScheduled: LocalDateTime
-
-        try {
-            meetTimeScheduled = LocalDateTime.parse(meetCreationData.time, dateTimeFormatter)
-        }
-        catch (dtp: DateTimeParseException) {
-            throw MeetCreationDataException(MeetCreationDataErrors.WRONG_TIME_FORMAT)
-        }
+        lateinit var meetResult: Meet
 
         transaction(db) {
-            Meets.insert {
+            val result = Meets.insert {
                 it[name] = meetCreationData.name
                 it[description] = meetCreationData.description
                 it[latitude] = meetCreationData.latitude
                 it[longitude] = meetCreationData.longitude
-                it[timeScheduled] = meetTimeScheduled
+                it[timeScheduled] = meetCreationData.time
                 it[timeCreated] = LocalDateTime.now()
                 it[creator] = meetCreationData.creatorUsername
+            }.resultedValues
+
+            if (result != null) {
+                meetResult = result.map {
+                    Meet(
+                        it[Meets.name],
+                        it[Meets.description],
+                        it[Meets.latitude],
+                        it[Meets.longitude],
+                        it[Meets.timeScheduled],
+                        it[Meets.creator],
+                        it[Meets.id],
+                        it[Meets.timeCreated]
+                    )
+                }[0]
+            }
+            else {
+                throw MeetCreationException()
             }
         }
+
+        return meetResult
     }
 
     fun removeMeet(meetId: Int) {
@@ -68,8 +81,6 @@ class MeetManager(private val db: Database) {
     }
 
     companion object {
-        private val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-
         private fun validateMeetCreationData(meetCreationData: MeetCreationData) =
             when {
                 meetCreationData.name.isEmpty() || meetCreationData.name.isBlank() -> MeetCreationDataErrors.NAME_EMPTY

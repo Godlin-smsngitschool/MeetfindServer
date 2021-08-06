@@ -5,10 +5,8 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.squareup.moshi.Json
-import com.trollingcont.errorhandling.MeetCreationDataException
-import com.trollingcont.errorhandling.UserAlreadyExistsException
-import com.trollingcont.errorhandling.UserFormatException
-import com.trollingcont.errorhandling.UserNotFoundException
+import com.trollingcont.errorhandling.*
+import com.trollingcont.model.Meet
 import com.trollingcont.model.MeetCreationData
 import com.trollingcont.model.ServerConfig
 import com.trollingcont.model.User
@@ -98,6 +96,8 @@ fun main() {
 
     println("Successfully connected to database")
 
+    val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+
     val app: HttpHandler = routes(
         "/register" bind Method.POST to {
                 req: Request ->
@@ -109,15 +109,15 @@ fun main() {
 
                 try {
                     databaseManager.addUser(user)
-                    println("[REQUEST HANDLER] POST /register :: New user ${user.name} successfully added")
+                    println("[REQUEST HANDLER] POST /register :: New user '${user.name}' successfully added")
                     Response(CREATED)
                 }
                 catch (ufe: UserFormatException) {
-                    println("[REQUEST HANDLER] POST /register :: User data is not valid, Body: '$requestBody', error code ${ufe.code().ordinal}")
+                    println("[REQUEST HANDLER] POST /register :: User data is not valid, error code ${ufe.code().ordinal}")
                     Response(BAD_REQUEST).body(ufe.code().ordinal.toString())
                 }
                 catch (uae: UserAlreadyExistsException) {
-                    println("[REQUEST HANDLER] POST /register :: attempt to add user with already existing name. Body: '$requestBody'")
+                    println("[REQUEST HANDLER] POST /register :: attempt to add user with already existing name '${user.name}'")
                     Response(BAD_REQUEST)
                 }
                 catch (exc: Exception) {
@@ -126,7 +126,7 @@ fun main() {
                 }
             }
             catch (exc: Exception) {
-                println("[REQUEST HANDLER] POST /register :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                println("[REQUEST HANDLER] POST /register :: Failed to parse JSON data.\n$exc")
                 Response(BAD_REQUEST).body(exc.toString())
             }
         },
@@ -141,15 +141,15 @@ fun main() {
 
                 try {
                     val newToken = databaseManager.generateToken(user)
-                    println("[REQUEST HANDLER] POST /login :: User ${user.name} - new JWT successfully generated")
+                    println("[REQUEST HANDLER] POST /login :: User '${user.name}' - new JWT successfully generated")
                     Response(CREATED).body(newToken)
                 }
                 catch (ufe: UserFormatException) {
-                    println("[REQUEST HANDLER] POST /login :: User data is not valid. '$requestBody', error code ${ufe.code().ordinal}")
+                    println("[REQUEST HANDLER] POST /login :: User data is not valid, error code ${ufe.code().ordinal}")
                     Response(BAD_REQUEST)
                 }
                 catch (unf: UserNotFoundException) {
-                    println("[REQUEST HANDLER] POST /login :: Attempt lo get token with wrong username/password. Body: '$requestBody'")
+                    println("[REQUEST HANDLER] POST /login :: Attempt lo get token with wrong username/password. Username: '${user.name}'")
                     Response(BAD_REQUEST)
                 }
                 catch (exc: Exception) {
@@ -158,20 +158,25 @@ fun main() {
                 }
             }
             catch (exc: Exception) {
-                println("[REQUEST HANDLER] POST /login :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                println("[REQUEST HANDLER] POST /login :: Failed to parse JSON data.\n$exc")
                 Response(BAD_REQUEST).body(exc.toString())
             }
         },
 
         "/test_req" bind Method.GET to {
                 req: Request ->
-            val token = req.header("Authorization")
 
-            if (token != null && databaseManager.isValidToken(token)) {
+            try {
+                val token = req.header("Authorization")
+
+                if (token == null || !databaseManager.isValidToken(token)) {
+                    throw UnauthorizedAccessException()
+                }
+
                 println("[REQUEST HANDLER] GET /test_req :: Success, token is valid")
                 Response(OK).body("Successfully authorized")
             }
-            else {
+            catch (ua: UnauthorizedAccessException) {
                 println("[REQUEST HANDLER] GET /test_req :: Attempt to access without valid token")
                 Response(UNAUTHORIZED).body("Not authorized: token is not valid or missing")
             }
@@ -179,46 +184,48 @@ fun main() {
 
         "/create_meet" bind Method.POST to {
                 req: Request ->
-            val token = req.header("Authorization")
 
-            if (token != null && databaseManager.isValidToken(token)) {
-                val requestBody = req.bodyString()
+            val requestBody = req.bodyString()
+
+            try {
+                val token = req.header("Authorization") ?: throw UnauthorizedAccessException()
+
+                val jsonObject = JsonParser.parseString(requestBody).asJsonObject
+
+                val meetCreationData = MeetCreationData(
+                    jsonObject.get("name").asString,
+                    jsonObject.get("description").asString,
+                    jsonObject.get("latitude").asDouble,
+                    jsonObject.get("longitude").asDouble,
+                    LocalDateTime.parse(jsonObject.get("time").asString, dateTimeFormatter),
+                    jsonObject.get("creatorUsername").asString
+                )
+
+                if (!databaseManager.isValidToken(token, meetCreationData.creatorUsername)) {
+                    throw UnauthorizedAccessException()
+                }
 
                 try {
-                    val jsonObject = JsonParser.parseString(requestBody).asJsonObject
-
-                    val meetCreationData = MeetCreationData(
-                        jsonObject.get("name").asString,
-                        jsonObject.get("description").asString,
-                        jsonObject.get("latitude").asDouble,
-                        jsonObject.get("longitude").asDouble,
-                        jsonObject.get("time").asString,
-                        jsonObject.get("creatorUsername").asString
-                    )
-
-                    try {
-                        databaseManager.addMeet(meetCreationData)
-                    }
-                    catch (mcd: MeetCreationDataException) {
-                        println("[REQUEST HANDLER] POST /create_meet :: Meet creation data is not valid. '$requestBody'," +
-                                " error code ${mcd.code().ordinal}")
-                        Response(BAD_REQUEST).body(mcd.code().ordinal.toString())
-                    }
-                    catch (exc: Exception) {
-                        println("[REQUEST HANDLER][SERVER ERROR] POST /create_meet :: Exception $exc")
-                        Response(INTERNAL_SERVER_ERROR)
-                    }
-
-                    Response(CREATED)
+                    val createdMeet = databaseManager.addMeet(meetCreationData)
+                    Response(CREATED).body(createdMeet.toJson(dateTimeFormatter))
+                }
+                catch (mcd: MeetCreationDataException) {
+                    println("[REQUEST HANDLER] POST /create_meet :: Meet creation data is not valid. '$requestBody'," +
+                            " error code ${mcd.code().ordinal}")
+                    Response(BAD_REQUEST).body(mcd.code().ordinal.toString())
                 }
                 catch (exc: Exception) {
-                    println("[REQUEST HANDLER] POST /create_meet :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
-                    Response(BAD_REQUEST)
+                    println("[REQUEST HANDLER][SERVER ERROR] POST /create_meet :: Exception $exc")
+                    Response(INTERNAL_SERVER_ERROR)
                 }
             }
-            else {
+            catch (ua: UnauthorizedAccessException) {
                 println("[REQUEST HANDLER] POST /create_meet :: Attempt to access without valid token")
                 Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER] POST /create_meet :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                Response(BAD_REQUEST)
             }
         }
     )
@@ -235,6 +242,4 @@ fun main() {
     }
 
     println("Server started on ${server.port()}, ready to accept connections")
-
-    // "2021-08-05T11:30:00+03:00"
 }
