@@ -12,16 +12,20 @@ import org.http4k.core.*
 import org.http4k.core.Status.Companion.BAD_REQUEST
 import org.http4k.core.Status.Companion.CREATED
 import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
+import org.http4k.core.Status.Companion.NOT_FOUND
 import org.http4k.core.Status.Companion.OK
 import org.http4k.core.Status.Companion.UNAUTHORIZED
 import org.http4k.filter.DebuggingFilters.PrintRequest
 import org.http4k.routing.bind
+import org.http4k.routing.path
 import org.http4k.routing.routes
 import org.http4k.server.Http4kServer
 import org.http4k.server.SunHttp
 import org.http4k.server.asServer
 import org.jetbrains.exposed.sql.Database
 import java.io.File
+import java.lang.NullPointerException
+import java.lang.NumberFormatException
 import java.nio.charset.Charset
 import java.nio.file.Paths
 import java.security.SecureRandom
@@ -252,6 +256,46 @@ fun main() {
             }
             catch (exc: Exception) {
                 println("[REQUEST HANDLER][SERVER ERROR] GET /meets :: Exception $exc")
+                Response(INTERNAL_SERVER_ERROR)
+            }
+        },
+
+        "meet/{id}" bind Method.GET to {
+            req: Request ->
+
+            var meetId: Int = -1
+
+            try {
+                val token = req.header("Authorization")
+
+                if (token == null || !databaseManager.isValidToken(token)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                meetId = req.path("id")!!.toInt()
+                val meet = databaseManager.getMeetById(meetId)
+
+                println("[REQUEST HANDLER] GET /meet/{id} :: Getting meet with id $meetId")
+                Response(OK).body(gson.toJson(meet))
+            }
+            catch (npe: NullPointerException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: No meet id specified")
+                Response(BAD_REQUEST)
+            }
+            catch (nfe: NumberFormatException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: Meet id is not a number")
+                Response(BAD_REQUEST)
+            }
+            catch (ua: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (mnf: MeetNotFoundException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: Meet with id $meetId not found")
+                Response(NOT_FOUND)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER][SERVER ERROR] GET /meet/{id} :: Exception ${exc.printStackTrace()}")
                 Response(INTERNAL_SERVER_ERROR)
             }
         }

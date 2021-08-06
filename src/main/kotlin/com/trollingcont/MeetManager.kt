@@ -2,11 +2,9 @@ package com.trollingcont
 
 import com.trollingcont.errorhandling.MeetCreationDataException
 import com.trollingcont.errorhandling.MeetCreationException
+import com.trollingcont.errorhandling.MeetNotFoundException
 import com.trollingcont.model.*
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -85,6 +83,35 @@ class MeetManager(private val db: Database) {
                         it[Meets.timeCreated]
                     )}
         }
+
+    fun getMeetById(meetId: Int): Meet {
+        lateinit var meet: Meet
+
+        transaction(db) {
+            val query = Meets.select {
+                Meets.id eq meetId
+            }
+
+            if (query.count() == 0L) {
+                throw MeetNotFoundException()
+            }
+
+            meet = query.map {
+                Meet(
+                    it[Meets.name],
+                    it[Meets.description],
+                    it[Meets.latitude],
+                    it[Meets.longitude],
+                    it[Meets.timeScheduled],
+                    it[Meets.creator],
+                    it[Meets.id],
+                    it[Meets.timeCreated]
+                )
+            }[0]
+        }
+
+        return meet
+    }
 
     fun removeMeet(meetId: Int) {
 

@@ -32,6 +32,9 @@ class DatabaseManager(
     fun getMeetsList(): List<Meet> =
         meetManager.getMeetsList()
 
+    fun getMeetById(meetId: Int) =
+        meetManager.getMeetById(meetId)
+
     fun addMeetParticipant(meetId: Int, participantUsername: String) {
 
     }
