@@ -6,6 +6,7 @@ import com.trollingcont.model.*
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -68,6 +69,22 @@ class MeetManager(private val db: Database) {
 
         return meetResult
     }
+
+    fun getMeetsList(): List<Meet> =
+        transaction(db) {
+            Meets.selectAll()
+                .map {
+                    Meet(
+                        it[Meets.name],
+                        it[Meets.description],
+                        it[Meets.latitude],
+                        it[Meets.longitude],
+                        it[Meets.timeScheduled],
+                        it[Meets.creator],
+                        it[Meets.id],
+                        it[Meets.timeCreated]
+                    )}
+        }
 
     fun removeMeet(meetId: Int) {
 

@@ -1,9 +1,6 @@
 package com.trollingcont
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.google.gson.*
 import com.squareup.moshi.Json
 import com.trollingcont.errorhandling.*
 import com.trollingcont.model.Meet
@@ -36,10 +33,17 @@ import kotlin.system.exitProcess
 
 const val configFileName = "ServerConfig.json"
 const val loggerPropertiesFileName = "log4j.properties"
+const val dateTimePattern = "yyyy-MM-dd'T'HH:mm:ss"
 
 fun main() {
     PropertyConfigurator.configure(loggerPropertiesFileName)
-    val gson = Gson()
+
+    val dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern)
+
+    val gsonBuilder = GsonBuilder()
+    val dateTimeSerializer: JsonSerializer<LocalDateTime> = DateTimeSerializer(dateTimeFormatter)
+    gsonBuilder.registerTypeAdapter(LocalDateTime::class.java, dateTimeSerializer)
+    val gson = gsonBuilder.create()
 
     val currentDirectory = Paths.get("").toAbsolutePath().toString()
 
@@ -95,8 +99,6 @@ fun main() {
     }
 
     println("Successfully connected to database")
-
-    val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
     val app: HttpHandler = routes(
         "/register" bind Method.POST to {
@@ -207,7 +209,7 @@ fun main() {
 
                 try {
                     val createdMeet = databaseManager.addMeet(meetCreationData)
-                    Response(CREATED).body(createdMeet.toJson(dateTimeFormatter))
+                    Response(CREATED).body(gson.toJson(createdMeet))
                 }
                 catch (mcd: MeetCreationDataException) {
                     println("[REQUEST HANDLER] POST /create_meet :: Meet creation data is not valid. '$requestBody'," +
@@ -226,6 +228,31 @@ fun main() {
             catch (exc: Exception) {
                 println("[REQUEST HANDLER] POST /create_meet :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
                 Response(BAD_REQUEST)
+            }
+        },
+
+        "meets" bind Method.GET to {
+            req: Request ->
+
+            try {
+                val token = req.header("Authorization")
+
+                if (token == null || !databaseManager.isValidToken(token)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                val meetsList = databaseManager.getMeetsList()
+
+                println("[REQUEST HANDLER] GET /meets :: Getting meets list - success")
+                Response(OK).body(gson.toJson(meetsList))
+            }
+            catch (ua: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] GET /meets :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER][SERVER ERROR] GET /meets :: Exception $exc")
+                Response(INTERNAL_SERVER_ERROR)
             }
         }
     )

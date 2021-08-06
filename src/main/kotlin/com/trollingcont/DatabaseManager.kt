@@ -29,6 +29,9 @@ class DatabaseManager(
     fun addMeet(meetCreationData: MeetCreationData): Meet =
         meetManager.addMeet(meetCreationData)
 
+    fun getMeetsList(): List<Meet> =
+        meetManager.getMeetsList()
+
     fun addMeetParticipant(meetId: Int, participantUsername: String) {
 
     }
