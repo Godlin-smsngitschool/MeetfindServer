@@ -1,9 +1,6 @@
 package com.trollingcont
 
-import com.trollingcont.errorhandling.MeetCreationDataException
-import com.trollingcont.errorhandling.MeetCreationException
-import com.trollingcont.errorhandling.MeetNotFoundException
-import com.trollingcont.errorhandling.ParticipantAlreadyExistsException
+import com.trollingcont.errorhandling.*
 import com.trollingcont.model.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -141,6 +138,19 @@ class MeetManager(private val db: Database) {
     }
 
     fun removeMeetParticipant(meetId: Int, username: String) {
+        transaction(db) {
+            if (
+                MeetParticipants.select {
+                    (MeetParticipants.meetId eq meetId) and (MeetParticipants.user eq username)
+                }.count() == 0L
+            ) {
+                throw ParticipantNotFoundException()
+            }
+
+            MeetParticipants.deleteWhere {
+                (MeetParticipants.meetId eq meetId) and (MeetParticipants.user eq username)
+            }
+        }
     }
 
     companion object {

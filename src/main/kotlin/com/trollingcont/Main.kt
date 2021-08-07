@@ -343,6 +343,46 @@ fun main() {
                 println("[REQUEST HANDLER] POST /add_participant :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
                 Response(BAD_REQUEST)
             }
+        },
+
+        "/delete_participant" bind Method.POST to {
+            req: Request ->
+
+            val requestBody = req.bodyString()
+
+            try {
+                val token = req.header("Authorization") ?: throw UnauthorizedAccessException()
+
+                val jsonObject = JsonParser.parseString(requestBody).asJsonObject
+
+                val meetId = jsonObject.get("meetId").asInt
+                val username = jsonObject.get("username").asString
+
+                if (!databaseManager.isValidToken(token, username)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                try {
+                    databaseManager.removeMeetParticipant(meetId, username)
+                    Response(OK)
+                }
+                catch (pae: ParticipantNotFoundException) {
+                    println("[REQUEST HANDLER] POST /delete_participant :: Participant '$username' of meet $meetId not found")
+                    Response(NOT_FOUND)
+                }
+                catch (exc: Exception) {
+                    println("[REQUEST HANDLER][SERVER ERROR] POST /delete_participant :: Exception ${exc.printStackTrace()}")
+                    Response(INTERNAL_SERVER_ERROR)
+                }
+            }
+            catch (uae: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] POST /delete_participant :: Attempt to access with valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER] POST /delete_participant :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                Response(BAD_REQUEST)
+            }
         }
     )
 
