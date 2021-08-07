@@ -100,6 +100,7 @@ fun main() {
     }
     catch (exc: Exception) {
         println("Unable to start server: internal error: $exc")
+        exitProcess(-1)
     }
 
     println("Successfully connected to database")
@@ -235,7 +236,7 @@ fun main() {
             }
         },
 
-        "meets" bind Method.GET to {
+        "/meets" bind Method.GET to {
             req: Request ->
 
             try {
@@ -260,7 +261,7 @@ fun main() {
             }
         },
 
-        "meet/{id}" bind Method.GET to {
+        "/meet/{id}" bind Method.GET to {
             req: Request ->
 
             var meetId: Int = -1
@@ -297,6 +298,50 @@ fun main() {
             catch (exc: Exception) {
                 println("[REQUEST HANDLER][SERVER ERROR] GET /meet/{id} :: Exception ${exc.printStackTrace()}")
                 Response(INTERNAL_SERVER_ERROR)
+            }
+        },
+
+        "/add_participant" bind Method.POST to {
+            req: Request ->
+
+            val requestBody = req.bodyString()
+
+            try {
+                val token = req.header("Authorization") ?: throw UnauthorizedAccessException()
+
+                val jsonObject = JsonParser.parseString(requestBody).asJsonObject
+
+                val meetId = jsonObject.get("meetId").asInt
+                val username = jsonObject.get("username").asString
+
+                if (!databaseManager.isValidToken(token, username)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                try {
+                    databaseManager.addMeetParticipant(meetId, username)
+                    Response(CREATED)
+                }
+                catch (mnf: MeetNotFoundException) {
+                    println("[REQUEST HANDLER] POST /add_participant :: Meet with id $meetId not found")
+                    Response(NOT_FOUND)
+                }
+                catch (pae: ParticipantAlreadyExistsException) {
+                    println("[REQUEST HANDLER] POST /add_participant :: '$username' is already participant of meet $meetId")
+                    Response(BAD_REQUEST)
+                }
+                catch (exc: Exception) {
+                    println("[REQUEST HANDLER][SERVER ERROR] POST /add_participant :: Exception ${exc.printStackTrace()}")
+                    Response(INTERNAL_SERVER_ERROR)
+                }
+            }
+            catch (uae: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] POST /add_participant :: Attempt to access with valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER] POST /add_participant :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
+                Response(BAD_REQUEST)
             }
         }
     )

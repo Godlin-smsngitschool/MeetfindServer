@@ -36,7 +36,7 @@ class DatabaseManager(
         meetManager.getMeetById(meetId)
 
     fun addMeetParticipant(meetId: Int, participantUsername: String) {
-
+        meetManager.addMeetParticipant(meetId, participantUsername)
     }
 
     fun removeMeetParticipant(meetId: Int, participantUsername: String) {
