@@ -472,7 +472,8 @@ fun main() {
         "/user_meets" bind Method.POST to {
             req: Request ->
 
-            val username = req.bodyString()
+            val requestBody = req.bodyString()
+            var username = ""
 
             try {
                 val token = req.header("Authorization")
@@ -481,14 +482,23 @@ fun main() {
                     throw UnauthorizedAccessException()
                 }
 
+                val jsonObject = JsonParser.parseString(requestBody).asJsonObject
+
+                username = jsonObject.get("username").asString
+
                 if (!databaseManager.isUsernameUsed(username)) {
                     throw UserNotFoundException()
                 }
 
-                val meetIds = databaseManager.getUserMeets(username)
-
-                println("[REQUEST HANDLER] GET /user_meets :: Getting meets of user '$username'")
-                Response(OK).body(gson.toJson(meetIds))
+                try {
+                    val meetIds = databaseManager.getUserMeets(username)
+                    println("[REQUEST HANDLER] GET /user_meets :: Getting meets of user '$username'")
+                    Response(OK).body(gson.toJson(meetIds))
+                }
+                catch (exc: Exception) {
+                    println("[REQUEST HANDLER][SERVER ERROR] GET /user_meets :: Exception {${exc.printStackTrace()}}")
+                    Response(INTERNAL_SERVER_ERROR)
+                }
             }
             catch (unf: UserNotFoundException) {
                 println("[REQUEST HANDLER] GET /user_meets :: User '$username' not found")
@@ -499,8 +509,8 @@ fun main() {
                 Response(UNAUTHORIZED)
             }
             catch (exc: Exception) {
-                println("[REQUEST HANDLER][SERVER ERROR] GET /user_meets :: Exception ${exc.printStackTrace()}")
-                Response(INTERNAL_SERVER_ERROR)
+                println("[REQUEST HANDLER] GET /user_meets :: Failed to parse json data. Body: $requestBody\n$exc")
+                Response(BAD_REQUEST)
             }
         }
     )
