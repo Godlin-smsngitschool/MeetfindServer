@@ -465,6 +465,41 @@ fun main() {
                 println("[REQUEST HANDLER][SERVER ERROR] GET /meet_participants/{id} :: Exception ${exc.printStackTrace()}")
                 Response(INTERNAL_SERVER_ERROR)
             }
+        },
+
+        "/user_meets" bind Method.POST to {
+            req: Request ->
+
+            val username = req.bodyString()
+
+            try {
+                val token = req.header("Authorization")
+
+                if (token == null || !databaseManager.isValidToken(token)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                if (!databaseManager.isUsernameUsed(username)) {
+                    throw UserNotFoundException()
+                }
+
+                val meetIds = databaseManager.getUserMeets(username)
+
+                println("[REQUEST HANDLER] GET /user_meets :: Getting meets of user '$username'")
+                Response(OK).body(gson.toJson(meetIds))
+            }
+            catch (unf: UserNotFoundException) {
+                println("[REQUEST HANDLER] GET /user_meets :: User '$username' not found")
+                Response(NOT_FOUND)
+            }
+            catch (ua: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] GET /user_meets :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER][SERVER ERROR] GET /user_meets :: Exception ${exc.printStackTrace()}")
+                Response(INTERNAL_SERVER_ERROR)
+            }
         }
     )
 

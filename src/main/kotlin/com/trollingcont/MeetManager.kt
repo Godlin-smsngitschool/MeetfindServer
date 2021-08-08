@@ -179,6 +179,16 @@ class MeetManager(private val db: Database) {
         }
     }
 
+    fun getUserMeets(username: String): List<Int> {
+        return transaction(db) {
+            MeetParticipants.select {
+                (MeetParticipants.user eq username)
+            }.map {
+                it[MeetParticipants.meetId]
+            }
+        }
+    }
+
     companion object {
         private fun validateMeetCreationData(meetCreationData: MeetCreationData) =
             when {
