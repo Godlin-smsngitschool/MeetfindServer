@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import kotlin.math.absoluteValue
 
 class MeetManager(private val db: Database) {
 
@@ -112,7 +113,19 @@ class MeetManager(private val db: Database) {
     }
 
     fun removeMeet(meetId: Int) {
+        transaction(db) {
+            val deletedRows = Meets.deleteWhere {
+                (Meets.id eq meetId)
+            }
 
+            if (deletedRows == 0) {
+                throw MeetNotFoundException()
+            }
+
+            MeetParticipants.deleteWhere {
+                (MeetParticipants.meetId eq meetId)
+            }
+        }
     }
 
     fun addMeetParticipant(meetId: Int, username: String) {

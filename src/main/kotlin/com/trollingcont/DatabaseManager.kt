@@ -44,6 +44,6 @@ class DatabaseManager(
     }
 
     fun removeMeet(meetId: Int) {
-
+        meetManager.removeMeet(meetId)
     }
 }

@@ -383,6 +383,48 @@ fun main() {
                 println("[REQUEST HANDLER] POST /delete_participant :: Failed to parse JSON data. Body: '$requestBody' \n$exc")
                 Response(BAD_REQUEST)
             }
+        },
+
+        "/delete_meet/{id}" bind Method.POST to {
+            req: Request ->
+
+            var meetId: Int = -1
+
+            try {
+                val token = req.header("Authorization") ?: throw UnauthorizedAccessException()
+
+                meetId = req.path("id")!!.toInt()
+                val deletedMeet = databaseManager.getMeetById(meetId)
+
+                if (!databaseManager.isValidToken(token, deletedMeet.creatorUsername)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                databaseManager.removeMeet(meetId)
+
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Meet $meetId successfully deleted")
+                Response(OK)
+            }
+            catch (npe: NullPointerException) {
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: No meet id specified")
+                Response(BAD_REQUEST)
+            }
+            catch (mnf: MeetNotFoundException) {
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Meet with id $meetId not found")
+                Response(NOT_FOUND)
+            }
+            catch (nfe: NumberFormatException) {
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Meet id is not a number")
+                Response(BAD_REQUEST)
+            }
+            catch (ua: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER][SERVER ERROR] POST /delete_meet/{id} :: Exception ${exc.printStackTrace()}")
+                Response(INTERNAL_SERVER_ERROR)
+            }
         }
     )
 
