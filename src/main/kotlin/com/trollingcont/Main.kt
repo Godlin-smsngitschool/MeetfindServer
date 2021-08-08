@@ -446,23 +446,23 @@ fun main() {
                 Response(OK).body(gson.toJson(participantsList))
             }
             catch (npe: NullPointerException) {
-                println("[REQUEST HANDLER] GET /meet/{id} :: No meet id specified")
+                println("[REQUEST HANDLER] GET /meet_participants/{id} :: No meet id specified")
                 Response(BAD_REQUEST)
             }
             catch (nfe: NumberFormatException) {
-                println("[REQUEST HANDLER] GET /meet/{id} :: Meet id is not a number")
+                println("[REQUEST HANDLER] GET /meet_participants/{id} :: Meet id is not a number")
                 Response(BAD_REQUEST)
             }
             catch (mnf: MeetNotFoundException) {
-                println("[REQUEST HANDLER] GET /meet/{id} :: Meet with id $meetId not found")
+                println("[REQUEST HANDLER] GET /meet_participants/{id} :: Meet with id $meetId not found")
                 Response(NOT_FOUND)
             }
             catch (ua: UnauthorizedAccessException) {
-                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Attempt to access without valid token")
+                println("[REQUEST HANDLER] GET /meet_participants/{id} :: Attempt to access without valid token")
                 Response(UNAUTHORIZED)
             }
             catch (exc: Exception) {
-                println("[REQUEST HANDLER][SERVER ERROR] POST /delete_meet/{id} :: Exception ${exc.printStackTrace()}")
+                println("[REQUEST HANDLER][SERVER ERROR] GET /meet_participants/{id} :: Exception ${exc.printStackTrace()}")
                 Response(INTERNAL_SERVER_ERROR)
             }
         }
