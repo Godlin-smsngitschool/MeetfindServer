@@ -43,6 +43,9 @@ class DatabaseManager(
         meetManager.removeMeetParticipant(meetId, participantUsername)
     }
 
+    fun getMeetParticipants(meetId: Int) =
+        meetManager.getMeetParticipants(meetId)
+
     fun removeMeet(meetId: Int) {
         meetManager.removeMeet(meetId)
     }

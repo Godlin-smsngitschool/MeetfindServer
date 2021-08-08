@@ -425,6 +425,46 @@ fun main() {
                 println("[REQUEST HANDLER][SERVER ERROR] POST /delete_meet/{id} :: Exception ${exc.printStackTrace()}")
                 Response(INTERNAL_SERVER_ERROR)
             }
+        },
+
+        "/meet_participants/{id}" bind Method.GET to {
+            req: Request ->
+
+            var meetId: Int = -1
+
+            try {
+                val token = req.header("Authorization")
+
+                if (token == null || !databaseManager.isValidToken(token)) {
+                    throw UnauthorizedAccessException()
+                }
+
+                meetId = req.path("id")!!.toInt()
+
+                val participantsList = databaseManager.getMeetParticipants(meetId)
+
+                Response(OK).body(gson.toJson(participantsList))
+            }
+            catch (npe: NullPointerException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: No meet id specified")
+                Response(BAD_REQUEST)
+            }
+            catch (nfe: NumberFormatException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: Meet id is not a number")
+                Response(BAD_REQUEST)
+            }
+            catch (mnf: MeetNotFoundException) {
+                println("[REQUEST HANDLER] GET /meet/{id} :: Meet with id $meetId not found")
+                Response(NOT_FOUND)
+            }
+            catch (ua: UnauthorizedAccessException) {
+                println("[REQUEST HANDLER] POST /delete_meet/{id} :: Attempt to access without valid token")
+                Response(UNAUTHORIZED)
+            }
+            catch (exc: Exception) {
+                println("[REQUEST HANDLER][SERVER ERROR] POST /delete_meet/{id} :: Exception ${exc.printStackTrace()}")
+                Response(INTERNAL_SERVER_ERROR)
+            }
         }
     )
 

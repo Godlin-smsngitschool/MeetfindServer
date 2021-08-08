@@ -166,6 +166,19 @@ class MeetManager(private val db: Database) {
         }
     }
 
+    fun getMeetParticipants(meetId: Int): List<String> {
+        // Throws exception if no meet with id=meetId
+        getMeetById(meetId)
+
+        return transaction(db) {
+            MeetParticipants.select {
+                (MeetParticipants.meetId eq meetId)
+            }.map {
+                it[MeetParticipants.user]
+            }
+        }
+    }
+
     companion object {
         private fun validateMeetCreationData(meetCreationData: MeetCreationData) =
             when {
