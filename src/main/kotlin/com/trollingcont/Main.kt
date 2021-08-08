@@ -214,6 +214,7 @@ fun main() {
 
                 try {
                     val createdMeet = databaseManager.addMeet(meetCreationData)
+                    println("[REQUEST HANDLER] POST /create_meet :: Meet successfully created. JSON data: ${gson.toJson(meetCreationData)}")
                     Response(CREATED).body(gson.toJson(createdMeet))
                 }
                 catch (mcd: MeetCreationDataException) {
