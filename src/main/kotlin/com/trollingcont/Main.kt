@@ -443,6 +443,7 @@ fun main() {
 
                 val participantsList = databaseManager.getMeetParticipants(meetId)
 
+                println("[REQUEST HANDLER]  GET /meet_participants/{id} :: Getting participants of meet $meetId")
                 Response(OK).body(gson.toJson(participantsList))
             }
             catch (npe: NullPointerException) {
